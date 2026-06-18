@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirlineWordle ✈ — Daily Airline Guessing Game</title>
+<meta name="description" content="Guess the mystery airline in 6 tries. New puzzle every day!">
+<meta property="og:title" content="AirlineWordle ✈">
+<meta property="og:description" content="Wordle for aviation fans. Guess the airline from geography hints!">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f5f5f0;
+    --bg3: #eeeee8;
+    --text: #1a1a1a;
+    --text2: #666;
+    --text3: #999;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --green: #1D9E75;
+    --green-bg: #e1f5ee;
+    --amber: #BA7517;
+    --amber-bg: #faeeda;
+    --blue: #185FA5;
+    --blue-bg: #e6f1fb;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a1a;
+      --bg2: #252525;
+      --bg3: #2e2e2e;
+      --text: #f0f0f0;
+      --text2: #aaa;
+      --text3: #666;
+      --border: rgba(255,255,255,0.12);
+      --border2: rgba(255,255,255,0.22);
+      --green-bg: #04342c;
+      --amber-bg: #412402;
+      --blue-bg: #042c53;
+    }
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg3);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1rem;
+  }
+
+  #app {
+    max-width: 580px;
+    margin: 0 auto;
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--border);
+    padding: 1.25rem;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 1rem;
+    border-bottom: 0.5px solid var(--border);
+    margin-bottom: 1rem;
+  }
+  .logo { font-size: 21px; font-weight: 600; letter-spacing: .3px; }
+  .logo span { color: var(--green); }
+  .subtitle { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .day-badge {
+    font-size: 11px;
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: var(--text2);
+  }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 1rem; }
+  .stat {
+    background: var(--bg2);
+    border-radius: var(--radius);
+    padding: .6rem .5rem;
+    text-align: center;
+  }
+  .stat-val { font-size: 22px; font-weight: 600; }
+  .stat-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  /* Hint panel */
+  .hint-panel {
+    background: var(--bg2);
+    border-radius: var(--radius-lg);
+    padding: .9rem 1rem;
+    margin-bottom: 1rem;
+  }
+  .hint-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: .6rem;
+  }
+  .hints { display: flex; flex-direction: column; gap: 5px; }
+  .hint-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .hint-icon { width: 18px; text-align: center; flex-shrink: 0; font-size: 14px; }
+  .hint-label { color: var(--text2); min-width: 90px; }
+  .hint-val { margin-left: auto; font-weight: 500; font-size: 13px; }
+  .hint-locked {
+    filter: blur(6px);
+    user-select: none;
+    pointer-events: none;
+  }
+  .hint-new { color: var(--green); font-weight: 600; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 12px;
+    margin-bottom: .75rem;
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* Guess grid */
+  .guess-grid { display: flex; flex-direction: column; gap: 5px; margin-bottom: .75rem; }
+  .guess-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; }
+  .guess-cell {
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10.5px;
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border);
+    background: var(--bg);
+    color: var(--text2);
+    text-align: center;
+    line-height: 1.25;
+    padding: 4px 3px;
+    word-break: break-word;
+    transition: background 0.35s, border-color 0.35s;
+  }
+  .guess-cell.correct { background: var(--green); border-color: var(--green); color: #fff; }
+  .guess-cell.wrong { background: var(--bg2); border-color: var(--border); }
+  .guess-cell.empty { opacity: .35; }
+
+  .col-labels { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; margin-bottom: 4px; }
+  .col-label { font-size: 10px; color: var(--text3); text-align: center; padding: 0 2px; }
+
+  /* Input */
+  .input-wrap { position: relative; }
+  .input-row { display: flex; gap: 8px; margin-bottom: .5rem; }
+  .input-row input {
+    flex: 1;
+    height: 40px;
+    font-size: 14px;
+    padding: 0 12px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .input-row input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(29,158,117,.15); }
+  .input-row button {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius);
+    border: none;
+    background: var(--green);
+    color: #fff;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .input-row button:hover { opacity: .88; }
+  .input-row button:disabled { opacity: .4; cursor: default; }
+
+  .ac-list {
+    position: absolute;
+    top: 100%;
+    left: 0; right: 0;
+    background: var(--bg);
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    z-index: 20;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-top: 3px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  }
+  .ac-item {
+    padding: 9px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 0.5px solid var(--border);
+  }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover { background: var(--bg2); }
+  .ac-name { font-weight: 500; }
+  .ac-meta { font-size: 11px; color: var(--text3); margin-left: auto; }
+  .ac-codes { font-size: 11px; background: var(--blue-bg); color: var(--blue); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+  .msg {
+    font-size: 13px;
+    color: #c0392b;
+    min-height: 18px;
+    margin-bottom: .5rem;
+  }
+
+  /* Result */
+  .result-box {
+    background: var(--bg2);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    text-align: center;
+    margin-top: .75rem;
+    border: 0.5px solid var(--border);
+  }
+  .result-title { font-size: 22px; font-weight: 700; margin-bottom: .25rem; }
+  .result-answer {
+    font-size: 13px; color: var(--text2);
+    margin-bottom: .75rem;
+  }
+  .result-answer strong { color: var(--text); }
+  .result-tags { margin-bottom: .75rem; }
+  .tag {
+    display: inline-block;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--blue-bg);
+    color: var(--blue);
+    margin: 2px;
+    font-weight: 500;
+  }
+  .emoji-grid {
+    font-size: 18px;
+    letter-spacing: 3px;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    font-family: monospace;
+  }
+  .share-btn {
+    background: var(--green);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    padding: 11px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .share-btn:hover { opacity: .88; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    max-width: 380px;
+    width: 90%;
+    border: 0.5px solid var(--border);
+  }
+  .modal h2 { font-size: 17px; font-weight: 600; margin-bottom: .75rem; }
+  .modal p { font-size: 13px; color: var(--text2); line-height: 1.6; margin-bottom: .5rem; }
+  .modal-close {
+    margin-top: 1rem;
+    width: 100%;
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 0.5px solid var(--border2);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .help-btn {
+    background: none;
+    border: 0.5px solid var(--border2);
+    color: var(--text2);
+    border-radius: 20px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 6px;
+  }
+
+  @media (max-width: 420px) {
+    body { padding: .5rem; }
+    #app { padding: .9rem; border-radius: var(--radius); }
+    .stats-row { gap: 5px; }
+    .stat-val { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="header">
+    <div>
+      <div class="logo">✈ Airline<span>Wordle</span></div>
+      <div class="subtitle">Guess today's mystery airline</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span class="day-badge" id="day-badge">#1</span>
+      <button class="help-btn" id="help-btn">? how to play</button>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-val" id="s-played">0</div><div class="stat-lbl">Played</div></div>
+    <div class="stat"><div class="stat-val" id="s-win">0%</div><div class="stat-lbl">Win %</div></div>
+    <div class="stat"><div class="stat-val" id="s-streak">0</div><div class="stat-lbl">Streak 🔥</div></div>
+    <div class="stat"><div class="stat-val" id="s-best">—</div><div class="stat-lbl">Best</div></div>
+  </div>
+
+  <div class="hint-panel">
+    <div class="hint-title">🔍 Hints (unlock with each guess)</div>
+    <div class="hints" id="hints-area"></div>
+  </div>
+
+  <div class="col-labels">
+    <div class="col-label">Continent</div>
+    <div class="col-label">Region</div>
+    <div class="col-label">Country</div>
+    <div class="col-label">Hub</div>
+    <div class="col-label">Alliance</div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>Exact match</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--bg2);border:1px solid var(--border2)"></div>No match</div>
+  </div>
+
+  <div class="guess-grid" id="guess-grid"></div>
+
+  <div class="msg" id="msg"></div>
+
+  <div id="input-section">
+    <div class="input-wrap">
+      <div class="input-row">
+        <input id="guess-input" placeholder="Type airline name, IATA or ICAO…" autocomplete="off" spellcheck="false"/>
+        <button id="guess-btn">Guess</button>
+      </div>
+      <div class="ac-list" id="ac-list" style="display:none"></div>
+    </div>
+  </div>
+
+  <div id="result-section"></div>
+</div>
+
+<!-- How to play modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>✈ How to play AirlineWordle</h2>
+    <p>A mystery airline is chosen each day. You have <strong>6 guesses</strong> to identify it.</p>
+    <p>After each guess, the row shows which of 5 attributes match the target airline:</p>
+    <p><strong style="color:var(--green)">Green</strong> = exact match for that attribute.</p>
+    <p>A new <strong>hint</strong> unlocks with each guess — continent first, then region, country, hub, alliance, carrier type, IATA, ICAO, founding year, and status.</p>
+    <p>Search by airline name, IATA code (e.g. <em>LH</em>), or ICAO code (e.g. <em>DLH</em>).</p>
+    <p>Share your result with friends using the <strong>Copy result</strong> button!</p>
+    <button class="modal-close" id="modal-close">Got it</button>
+  </div>
+</div>
+
+<script>
+const AIRLINES = [
+  {name:"Lufthansa",iata:"LH",icao:"DLH",country:"Germany",continent:"Europe",region:"Western Europe",hub:"Frankfurt",founded:1953,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"British Airways",iata:"BA",icao:"BAW",country:"United Kingdom",continent:"Europe",region:"Western Europe",hub:"London Heathrow",founded:1974,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Air France",iata:"AF",icao:"AFR",country:"France",continent:"Europe",region:"Western Europe",hub:"Paris CDG",founded:1933,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Emirates",iata:"EK",icao:"UAE",country:"UAE",continent:"Asia",region:"Middle East",hub:"Dubai",founded:1985,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Singapore Airlines",iata:"SQ",icao:"SIA",country:"Singapore",continent:"Asia",region:"Southeast Asia",hub:"Changi",founded:1972,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Qantas",iata:"QF",icao:"QFA",country:"Australia",continent:"Oceania",region:"Australasia",hub:"Sydney",founded:1920,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Delta Air Lines",iata:"DL",icao:"DAL",country:"USA",continent:"North America",region:"North America",hub:"Atlanta",founded:1925,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"United Airlines",iata:"UA",icao:"UAL",country:"USA",continent:"North America",region:"North America",hub:"Chicago O'Hare",founded:1926,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"American Airlines",iata:"AA",icao:"AAL",country:"USA",continent:"North America",region:"North America",hub:"Dallas/Fort Worth",founded:1926,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Ryanair",iata:"FR",icao:"RYR",country:"Ireland",continent:"Europe",region:"Western Europe",hub:"Dublin",founded:1984,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"easyJet",iata:"U2",icao:"EZY",country:"United Kingdom",continent:"Europe",region:"Western Europe",hub:"London Luton",founded:1995,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Southwest Airlines",iata:"WN",icao:"SWA",country:"USA",continent:"North America",region:"North America",hub:"Dallas Love Field",founded:1967,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Turkish Airlines",iata:"TK",icao:"THY",country:"Turkey",continent:"Europe",region:"Eastern Europe",hub:"Istanbul",founded:1933,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"KLM",iata:"KL",icao:"KLM",country:"Netherlands",continent:"Europe",region:"Western Europe",hub:"Amsterdam Schiphol",founded:1919,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Swiss International Air Lines",iata:"LX",icao:"SWR",country:"Switzerland",continent:"Europe",region:"Western Europe",hub:"Zurich",founded:2002,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Iberia",iata:"IB",icao:"IBE",country:"Spain",continent:"Europe",region:"Western Europe",hub:"Madrid Barajas",founded:1927,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Finnair",iata:"AY",icao:"FIN",country:"Finland",continent:"Europe",region:"Northern Europe",hub:"Helsinki",founded:1923,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"SAS",iata:"SK",icao:"SAS",country:"Sweden",continent:"Europe",region:"Northern Europe",hub:"Stockholm Arlanda",founded:1946,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Cathay Pacific",iata:"CX",icao:"CPA",country:"Hong Kong",continent:"Asia",region:"East Asia",hub:"Hong Kong",founded:1946,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Japan Airlines",iata:"JL",icao:"JAL",country:"Japan",continent:"Asia",region:"East Asia",hub:"Tokyo Haneda",founded:1951,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"ANA",iata:"NH",icao:"ANA",country:"Japan",continent:"Asia",region:"East Asia",hub:"Tokyo Haneda",founded:1952,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Korean Air",iata:"KE",icao:"KAL",country:"South Korea",continent:"Asia",region:"East Asia",hub:"Seoul Incheon",founded:1969,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"China Southern",iata:"CZ",icao:"CSN",country:"China",continent:"Asia",region:"East Asia",hub:"Guangzhou",founded:1988,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Air China",iata:"CA",icao:"CCA",country:"China",continent:"Asia",region:"East Asia",hub:"Beijing",founded:1988,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Qatar Airways",iata:"QR",icao:"QTR",country:"Qatar",continent:"Asia",region:"Middle East",hub:"Doha",founded:1993,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Etihad Airways",iata:"EY",icao:"ETD",country:"UAE",continent:"Asia",region:"Middle East",hub:"Abu Dhabi",founded:2003,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Air India",iata:"AI",icao:"AIC",country:"India",continent:"Asia",region:"South Asia",hub:"Delhi",founded:1932,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"IndiGo",iata:"6E",icao:"IGO",country:"India",continent:"Asia",region:"South Asia",hub:"Delhi",founded:2006,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Thai Airways",iata:"TG",icao:"THA",country:"Thailand",continent:"Asia",region:"Southeast Asia",hub:"Bangkok Suvarnabhumi",founded:1960,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Malaysia Airlines",iata:"MH",icao:"MAS",country:"Malaysia",continent:"Asia",region:"Southeast Asia",hub:"Kuala Lumpur",founded:1947,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Garuda Indonesia",iata:"GA",icao:"GIA",country:"Indonesia",continent:"Asia",region:"Southeast Asia",hub:"Jakarta",founded:1949,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Vietnam Airlines",iata:"VN",icao:"HVN",country:"Vietnam",continent:"Asia",region:"Southeast Asia",hub:"Hanoi",founded:1956,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Philippine Airlines",iata:"PR",icao:"PAL",country:"Philippines",continent:"Asia",region:"Southeast Asia",hub:"Manila",founded:1941,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Air Arabia",iata:"G9",icao:"ABY",country:"UAE",continent:"Asia",region:"Middle East",hub:"Sharjah",founded:2003,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"flydubai",iata:"FZ",icao:"FDB",country:"UAE",continent:"Asia",region:"Middle East",hub:"Dubai",founded:2008,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Wizz Air",iata:"W6",icao:"WZZ",country:"Hungary",continent:"Europe",region:"Eastern Europe",hub:"Budapest",founded:2003,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Vueling",iata:"VY",icao:"VLG",country:"Spain",continent:"Europe",region:"Western Europe",hub:"Barcelona",founded:2004,status:"Active",alliance:"oneworld",type:"Low Cost"},
+  {name:"Norwegian Air",iata:"DY",icao:"NAX",country:"Norway",continent:"Europe",region:"Northern Europe",hub:"Oslo",founded:1993,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Air Berlin",iata:"AB",icao:"BER",country:"Germany",continent:"Europe",region:"Western Europe",hub:"Berlin",founded:1978,status:"Defunct",alliance:"oneworld",type:"Low Cost"},
+  {name:"Swissair",iata:"SR",icao:"SWR",country:"Switzerland",continent:"Europe",region:"Western Europe",hub:"Zurich",founded:1931,status:"Defunct",alliance:"None",type:"Full Service"},
+  {name:"Pan Am",iata:"PA",icao:"PAA",country:"USA",continent:"North America",region:"North America",hub:"New York JFK",founded:1927,status:"Defunct",alliance:"None",type:"Full Service"},
+  {name:"TWA",iata:"TW",icao:"TWA",country:"USA",continent:"North America",region:"North America",hub:"New York JFK",founded:1930,status:"Defunct",alliance:"None",type:"Full Service"},
+  {name:"Alitalia",iata:"AZ",icao:"AZA",country:"Italy",continent:"Europe",region:"Western Europe",hub:"Rome Fiumicino",founded:1946,status:"Defunct",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Mexicana",iata:"MX",icao:"MXA",country:"Mexico",continent:"North America",region:"Central America",hub:"Mexico City",founded:1921,status:"Defunct",alliance:"oneworld",type:"Full Service"},
+  {name:"VARIG",iata:"RG",icao:"VRG",country:"Brazil",continent:"South America",region:"South America",hub:"São Paulo",founded:1927,status:"Defunct",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Avianca",iata:"AV",icao:"AVA",country:"Colombia",continent:"South America",region:"South America",hub:"Bogotá",founded:1919,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"LATAM Airlines",iata:"LA",icao:"LAN",country:"Chile",continent:"South America",region:"South America",hub:"Santiago",founded:1929,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Gol Airlines",iata:"G3",icao:"GLO",country:"Brazil",continent:"South America",region:"South America",hub:"São Paulo",founded:2001,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Azul Airlines",iata:"AD",icao:"AZU",country:"Brazil",continent:"South America",region:"South America",hub:"Campinas",founded:2008,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Ethiopian Airlines",iata:"ET",icao:"ETH",country:"Ethiopia",continent:"Africa",region:"East Africa",hub:"Addis Ababa",founded:1945,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Kenya Airways",iata:"KQ",icao:"KQA",country:"Kenya",continent:"Africa",region:"East Africa",hub:"Nairobi",founded:1977,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"South African Airways",iata:"SA",icao:"SAA",country:"South Africa",continent:"Africa",region:"Southern Africa",hub:"Johannesburg",founded:1934,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"EgyptAir",iata:"MS",icao:"MSR",country:"Egypt",continent:"Africa",region:"North Africa",hub:"Cairo",founded:1932,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Royal Air Maroc",iata:"AT",icao:"RAM",country:"Morocco",continent:"Africa",region:"North Africa",hub:"Casablanca",founded:1957,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Air Mauritius",iata:"MK",icao:"MAU",country:"Mauritius",continent:"Africa",region:"East Africa",hub:"Mauritius",founded:1967,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Air New Zealand",iata:"NZ",icao:"ANZ",country:"New Zealand",continent:"Oceania",region:"Australasia",hub:"Auckland",founded:1940,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Fiji Airways",iata:"FJ",icao:"FJI",country:"Fiji",continent:"Oceania",region:"Pacific Islands",hub:"Nadi",founded:1951,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Air Canada",iata:"AC",icao:"ACA",country:"Canada",continent:"North America",region:"North America",hub:"Toronto Pearson",founded:1936,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"WestJet",iata:"WS",icao:"WJA",country:"Canada",continent:"North America",region:"North America",hub:"Calgary",founded:1996,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Alaska Airlines",iata:"AS",icao:"ASA",country:"USA",continent:"North America",region:"North America",hub:"Seattle",founded:1932,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"JetBlue",iata:"B6",icao:"JBU",country:"USA",continent:"North America",region:"North America",hub:"New York JFK",founded:1998,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Spirit Airlines",iata:"NK",icao:"NKS",country:"USA",continent:"North America",region:"North America",hub:"Miramar FL",founded:1983,status:"Active",alliance:"None",type:"Ultra Low Cost"},
+  {name:"Frontier Airlines",iata:"F9",icao:"FFT",country:"USA",continent:"North America",region:"North America",hub:"Denver",founded:1994,status:"Active",alliance:"None",type:"Ultra Low Cost"},
+  {name:"Hawaiian Airlines",iata:"HA",icao:"HAL",country:"USA",continent:"North America",region:"North America",hub:"Honolulu",founded:1929,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Aeromexico",iata:"AM",icao:"AMX",country:"Mexico",continent:"North America",region:"Central America",hub:"Mexico City",founded:1934,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Copa Airlines",iata:"CM",icao:"CMP",country:"Panama",continent:"North America",region:"Central America",hub:"Panama City",founded:1947,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Caribbean Airlines",iata:"BW",icao:"BWA",country:"Trinidad & Tobago",continent:"North America",region:"Caribbean",hub:"Port of Spain",founded:2006,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"LOT Polish Airlines",iata:"LO",icao:"LOT",country:"Poland",continent:"Europe",region:"Eastern Europe",hub:"Warsaw",founded:1929,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Aeroflot",iata:"SU",icao:"AFL",country:"Russia",continent:"Europe",region:"Eastern Europe",hub:"Moscow Sheremetyevo",founded:1923,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"TAP Air Portugal",iata:"TP",icao:"TAP",country:"Portugal",continent:"Europe",region:"Western Europe",hub:"Lisbon",founded:1945,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Brussels Airlines",iata:"SN",icao:"BEL",country:"Belgium",continent:"Europe",region:"Western Europe",hub:"Brussels",founded:2006,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Icelandair",iata:"FI",icao:"ICE",country:"Iceland",continent:"Europe",region:"Northern Europe",hub:"Keflavik",founded:1937,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Eurowings",iata:"EW",icao:"EWG",country:"Germany",continent:"Europe",region:"Western Europe",hub:"Düsseldorf",founded:1993,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Pegasus Airlines",iata:"PC",icao:"PGT",country:"Turkey",continent:"Europe",region:"Eastern Europe",hub:"Istanbul Sabiha",founded:1990,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Oman Air",iata:"WY",icao:"OMA",country:"Oman",continent:"Asia",region:"Middle East",hub:"Muscat",founded:1993,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Gulf Air",iata:"GF",icao:"GFA",country:"Bahrain",continent:"Asia",region:"Middle East",hub:"Bahrain",founded:1950,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"SriLankan Airlines",iata:"UL",icao:"SRI",country:"Sri Lanka",continent:"Asia",region:"South Asia",hub:"Colombo",founded:1979,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Pakistan International",iata:"PK",icao:"PIA",country:"Pakistan",continent:"Asia",region:"South Asia",hub:"Karachi",founded:1955,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Air Astana",iata:"KC",icao:"KZR",country:"Kazakhstan",continent:"Asia",region:"Central Asia",hub:"Almaty",founded:2001,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Eva Air",iata:"BR",icao:"EVA",country:"Taiwan",continent:"Asia",region:"East Asia",hub:"Taipei",founded:1989,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"China Airlines",iata:"CI",icao:"CAL",country:"Taiwan",continent:"Asia",region:"East Asia",hub:"Taipei",founded:1959,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Asiana Airlines",iata:"OZ",icao:"AAR",country:"South Korea",continent:"Asia",region:"East Asia",hub:"Seoul Incheon",founded:1988,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+  {name:"Lion Air",iata:"JT",icao:"LNI",country:"Indonesia",continent:"Asia",region:"Southeast Asia",hub:"Jakarta",founded:1999,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"AirAsia",iata:"AK",icao:"AXM",country:"Malaysia",continent:"Asia",region:"Southeast Asia",hub:"Kuala Lumpur",founded:1993,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Scoot",iata:"TR",icao:"TGW",country:"Singapore",continent:"Asia",region:"Southeast Asia",hub:"Singapore",founded:2011,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Cebu Pacific",iata:"5J",icao:"CEB",country:"Philippines",continent:"Asia",region:"Southeast Asia",hub:"Manila",founded:1988,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"China Eastern",iata:"MU",icao:"CES",country:"China",continent:"Asia",region:"East Asia",hub:"Shanghai",founded:1988,status:"Active",alliance:"SkyTeam",type:"Full Service"},
+  {name:"Hainan Airlines",iata:"HU",icao:"CHH",country:"China",continent:"Asia",region:"East Asia",hub:"Haikou",founded:1993,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Air Corsica",iata:"XK",icao:"CCM",country:"France",continent:"Europe",region:"Western Europe",hub:"Ajaccio",founded:1981,status:"Active",alliance:"None",type:"Regional"},
+  {name:"Transavia",iata:"HV",icao:"TRA",country:"Netherlands",continent:"Europe",region:"Western Europe",hub:"Amsterdam",founded:1965,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Volotea",iata:"V7",icao:"VOE",country:"Spain",continent:"Europe",region:"Western Europe",hub:"Bilbao",founded:2012,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Aer Lingus",iata:"EI",icao:"EIN",country:"Ireland",continent:"Europe",region:"Western Europe",hub:"Dublin",founded:1936,status:"Active",alliance:"oneworld",type:"Full Service"},
+  {name:"Condor",iata:"DE",icao:"CFG",country:"Germany",continent:"Europe",region:"Western Europe",hub:"Frankfurt",founded:1956,status:"Active",alliance:"None",type:"Charter"},
+  {name:"TUI Airways",iata:"BY",icao:"TOM",country:"United Kingdom",continent:"Europe",region:"Western Europe",hub:"London Gatwick",founded:1962,status:"Active",alliance:"None",type:"Charter"},
+  {name:"Jet2",iata:"LS",icao:"EXS",country:"United Kingdom",continent:"Europe",region:"Western Europe",hub:"Leeds Bradford",founded:1983,status:"Active",alliance:"None",type:"Low Cost"},
+  {name:"Air Malta",iata:"KM",icao:"AMC",country:"Malta",continent:"Europe",region:"Western Europe",hub:"Malta",founded:1973,status:"Defunct",alliance:"None",type:"Full Service"},
+  {name:"Olympic Air",iata:"OA",icao:"OAL",country:"Greece",continent:"Europe",region:"Western Europe",hub:"Athens",founded:2009,status:"Active",alliance:"None",type:"Full Service"},
+  {name:"Aegean Airlines",iata:"A3",icao:"AEE",country:"Greece",continent:"Europe",region:"Western Europe",hub:"Athens",founded:1987,status:"Active",alliance:"Star Alliance",type:"Full Service"},
+];
+
+const ATTRS = ["continent","region","country","hub","alliance"];
+const HINT_ATTRS = ["continent","region","country","hub","alliance","type","iata","icao","founded","status"];
+const HINT_LABELS = {continent:"Continent",region:"Region",country:"Country",hub:"Main hub",alliance:"Alliance",type:"Carrier type",iata:"IATA code",icao:"ICAO code",founded:"Founded",status:"Status"};
+const HINT_ICONS = {continent:"🌍",region:"🗺",country:"🏳",hub:"🛫",alliance:"🤝",type:"✈",iata:"🔤",icao:"🔡",founded:"📅",status:"🟢"};
+
+function getDayNum() {
+  return Math.floor((Date.now() - new Date("2024-01-01")) / 86400000);
+}
+function getTodayAirline() {
+  return AIRLINES[getDayNum() % AIRLINES.length];
+}
+
+let target = getTodayAirline();
+let guesses = [];
+let finished = false;
+let won = false;
+let stats = {played:0,won:0,streak:0,best:null};
+
+function loadSaved() {
+  try {
+    const st = JSON.parse(localStorage.getItem("aw_stats") || "null");
+    if (st) stats = st;
+    const gm = JSON.parse(localStorage.getItem("aw_game") || "null");
+    if (gm && gm.day === getDayNum()) {
+      guesses = gm.guesses.map(n => AIRLINES.find(a=>a.name===n)).filter(Boolean);
+      finished = gm.finished;
+      won = gm.won;
+    }
+  } catch(e) {}
+}
+
+function saveCurrent() {
+  try {
+    localStorage.setItem("aw_stats", JSON.stringify(stats));
+    localStorage.setItem("aw_game", JSON.stringify({
+      day: getDayNum(), guesses: guesses.map(g=>g.name), finished, won
+    }));
+  } catch(e) {}
+}
+
+function compareAttr(g, t, attr) {
+  return g[attr] === t[attr] ? "correct" : "wrong";
+}
+
+function renderHints() {
+  const n = guesses.length;
+  document.getElementById("hints-area").innerHTML = HINT_ATTRS.map((attr, i) => {
+    const unlocked = i < n + 1;
+    const isNew = i === n && n > 0;
+    const val = unlocked ? (attr==="founded" ? target[attr] : target[attr]) : "???";
+    return `<div class="hint-item">
+      <span class="hint-icon">${HINT_ICONS[attr]}</span>
+      <span class="hint-label">${HINT_LABELS[attr]}</span>
+      <span class="hint-val ${unlocked ? (isNew?'hint-new':'') : 'hint-locked'}">${val}</span>
+    </div>`;
+  }).join("");
+}
+
+function renderGrid() {
+  const grid = document.getElementById("guess-grid");
+  let rows = "";
+  for (let i = 0; i < 6; i++) {
+    const g = guesses[i];
+    let cells = "";
+    if (g) {
+      ATTRS.forEach(attr => {
+        const r = compareAttr(g, target, attr);
+        cells += `<div class="guess-cell ${r}" title="${HINT_LABELS[attr]}: ${g[attr]}">${g[attr]}</div>`;
+      });
+    } else {
+      cells = ATTRS.map(() => `<div class="guess-cell empty">—</div>`).join("");
+    }
+    rows += `<div class="guess-row">${cells}</div>`;
+  }
+  grid.innerHTML = rows;
+}
+
+function renderStats() {
+  document.getElementById("s-played").textContent = stats.played;
+  document.getElementById("s-win").textContent = stats.played > 0 ? Math.round(stats.won/stats.played*100)+"%" : "0%";
+  document.getElementById("s-streak").textContent = stats.streak;
+  document.getElementById("s-best").textContent = stats.best || "—";
+  document.getElementById("day-badge").textContent = "#" + getDayNum();
+}
+
+function makeEmojiGrid() {
+  return guesses.map(g =>
+    ATTRS.map(a => compareAttr(g,target,a)==="correct" ? "🟩" : "⬜").join("")
+  ).join("\n");
+}
+
+function showResult() {
+  const sec = document.getElementById("result-section");
+  const n = guesses.length;
+  const title = won
+    ? (n===1 ? "🎯 Perfect!" : n<=2 ? "🌟 Excellent!" : n<=4 ? "👏 Nice one!" : "😅 So close!")
+    : "✈ Better luck tomorrow!";
+  const emoji = makeEmojiGrid();
+  const tags = [
+    `<span class="tag">${target.iata} / ${target.icao}</span>`,
+    `<span class="tag">${target.country}</span>`,
+    `<span class="tag">${target.alliance}</span>`,
+    `<span class="tag">Est. ${target.founded}</span>`,
+  ].join("");
+
+  sec.innerHTML = `<div class="result-box">
+    <div class="result-title">${title}</div>
+    <div class="result-answer">The airline was <strong>${target.name}</strong></div>
+    <div class="result-tags">${tags}</div>
+    <div class="emoji-grid">${emoji}</div>
+    <button class="share-btn" id="share-btn">📋 Copy result</button>
+  </div>`;
+
+  document.getElementById("share-btn").onclick = () => {
+    const score = won ? guesses.length+"/6" : "X/6";
+    const text = `✈ AirlineWordle #${getDayNum()} — ${score}\n\n${emoji}\n\nPlay at: https://github.com/Lucifer-hi/airlinewordle.git`;
+    navigator.clipboard.writeText(text).then(() => {
+      document.getElementById("share-btn").textContent = "✓ Copied!";
+      setTimeout(() => { document.getElementById("share-btn").textContent = "📋 Copy result"; }, 2500);
+    });
+  };
+}
+
+function submitGuess(name) {
+  const msg = document.getElementById("msg");
+  const airline = AIRLINES.find(a => a.name.toLowerCase() === name.toLowerCase() ||
+    a.iata.toLowerCase() === name.toLowerCase() ||
+    a.icao.toLowerCase() === name.toLowerCase());
+  if (!airline) { msg.textContent = "Airline not found — pick from the dropdown."; return; }
+  if (guesses.find(g => g.name === airline.name)) { msg.textContent = "Already guessed!"; return; }
+  msg.textContent = "";
+  guesses.push(airline);
+
+  if (airline.name === target.name) {
+    finished = true; won = true;
+    stats.played++; stats.won++; stats.streak++;
+    if (!stats.best || guesses.length < stats.best) stats.best = guesses.length;
+  } else if (guesses.length >= 6) {
+    finished = true; won = false;
+    stats.played++; stats.streak = 0;
+  }
+  saveCurrent();
+  render();
+}
+
+function render() {
+  renderHints(); renderGrid(); renderStats();
+  if (finished) {
+    document.getElementById("input-section").style.display = "none";
+    showResult();
+  }
+}
+
+// Autocomplete
+const inp = document.getElementById("guess-input");
+const acList = document.getElementById("ac-list");
+
+inp.addEventListener("input", () => {
+  const v = inp.value.trim().toLowerCase();
+  acList.style.display = "none";
+  if (v.length < 1) return;
+  const matches = AIRLINES.filter(a =>
+    a.name.toLowerCase().includes(v) ||
+    a.iata.toLowerCase().startsWith(v) ||
+    a.icao.toLowerCase().startsWith(v)
+  ).slice(0, 8);
+  if (!matches.length) return;
+  acList.innerHTML = matches.map(a =>
+    `<div class="ac-item" data-name="${a.name}">
+      <span class="ac-codes">${a.iata}/${a.icao}</span>
+      <span class="ac-name">${a.name}</span>
+      <span class="ac-meta">${a.country}</span>
+    </div>`
+  ).join("");
+  acList.style.display = "block";
+  acList.querySelectorAll(".ac-item").forEach(el => {
+    el.addEventListener("mousedown", e => {
+      e.preventDefault();
+      inp.value = el.dataset.name;
+      acList.style.display = "none";
+      inp.focus();
+    });
+  });
+});
+
+document.addEventListener("click", e => {
+  if (!inp.contains(e.target) && !acList.contains(e.target)) acList.style.display = "none";
+});
+
+inp.addEventListener("keydown", e => {
+  if (e.key === "Enter") { submitGuess(inp.value.trim()); inp.value = ""; acList.style.display = "none"; }
+});
+
+document.getElementById("guess-btn").addEventListener("click", () => {
+  submitGuess(inp.value.trim()); inp.value = ""; acList.style.display = "none";
+});
+
+// Modal
+document.getElementById("help-btn").addEventListener("click", () => {
+  document.getElementById("modal").classList.add("open");
+});
+document.getElementById("modal-close").addEventListener("click", () => {
+  document.getElementById("modal").classList.remove("open");
+});
+document.getElementById("modal").addEventListener("click", e => {
+  if (e.target === document.getElementById("modal")) document.getElementById("modal").classList.remove("open");
+});
+
+loadSaved();
+render();
+</script>
+</body>
+</html>
