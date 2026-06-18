@@ -617,7 +617,7 @@ function showResult() {
 
   document.getElementById("share-btn").onclick = () => {
     const score = won ? guesses.length+"/6" : "X/6";
-    const text = `✈ AirlineWordle #${getDayNum()} — ${score}\n\n${emoji}\n\nPlay at: https://github.com/Lucifer-hi/airlinewordle.git`;
+    const text = `✈ AirlineWordle #${getDayNum()} — ${score}\n\n${emoji}\n\nPlay at: https://lucifer-hi.github.io/airlinewordle/`;
     navigator.clipboard.writeText(text).then(() => {
       document.getElementById("share-btn").textContent = "✓ Copied!";
       setTimeout(() => { document.getElementById("share-btn").textContent = "📋 Copy result"; }, 2500);
